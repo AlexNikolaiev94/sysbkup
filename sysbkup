@@ -1,0 +1,105 @@
+#!/bin/bash
+
+source $(dirname "$0")/lib/_fmt.sh
+source /etc/profile
+
+PROGNAME=${0##*/}
+DATE=$(date "+%F")
+LOGFILE="/var/log/$PROGNAME-$DATE.log"
+
+gen_backup() {
+    local execbkup
+    local continue
+
+    if [[ -z ${SYSBKUP_CONFD+x} ]]; then
+        echo "${_RED}Configuration path not found in the environment; exiting.${_NOCOLOR}${_NEWLINE}"
+        exit 1
+    fi
+
+    if [[ ! -f "$SYSBKUP_CONFD/sysbkup" ]]; then
+        echo -e "${_RED}Configuration file missing; exiting.${_NOCOLOR}${_NEWLINE}"
+        exit 1
+    fi
+
+    if [[ ! -f "$SYSBKUP_CONFD/exclude" ]]; then
+        read -p "No exclude file exists; continue? ${_BLUE}(y/n)${_GREEN} <${_NOCOLOR} " continue
+        if [[ $continue == "n" ]]; then exit 1; fi
+    fi
+
+    source "$SYSBKUP_CONFD/sysbkup"
+
+    BACKUP="${BAK_DIR}/${PC}_${DIST}-full-${DATE}.tar.gz"
+
+    _draw_border_blue 80 "!"
+    read -p "Backing up system by chroot from a LiveCD. Are you ready to proceed? ${_BLUE}(y/n)${_GREEN} <${_NOCOLOR} " execbkup
+    _draw_border_blue 80 "!"
+    if [[ $execbkup == "y" ]]; then
+        echo -e "Creating full system backup $BACKUP..."
+        bsdtar --verbose  --exclude-from="$SYSBKUP_CONFD/exclude" --acls --xattrs -cpvaf "$BACKUP" / &> "$LOGFILE"
+        _draw_border_green 80 "~"
+        echo "System backup created! Exiting..."
+        _draw_border_green 80 "~"
+        exit 0
+    else
+        echo -e "${_YELLOW}System backup creation aborted; Exiting...${_NOCOLOR}${_NEWLINE}"
+        exit 1
+    fi
+}
+
+usage() {
+    cat - <<EOF
+  usage: $PROGNAME [OPTION]
+  The program accepts only one argument of the following.
+
+  Available options:
+
+      -g, --genconf       Generate the configuration files
+      -b, --backup        Create a full system backup
+
+  Informational options:
+      -h, --help          Displays this message
+      -v, --version       Displays the version
+
+  ${_YELLOW}!!!IMPORTANT!!!${_NOCOLOR} This script assumes you are running it with root privileges
+  using LiveCD or similar environment and having your system mounted and chroot'ed
+  as described in this article ${_BLUE}https://wiki.archlinux.org/title/Full_system_backup_with_tar${_NOCOLOR}
+  Running it within your system proper has not been tested and may have several unforesen consequences,
+  up to causing irreparable damage to your filesystem. ${_RED}Use it with sudo at your own risk!${_NOCOLOR}
+EOF
+}
+
+if [[ $# -gt 1 ]]; then
+    echo "  This program accepts only one argument. Check --help for available options."
+    exit
+elif [[ $# -lt 1 ]]; then
+    echo "  This program requires an argument to be passed. Check --help for available options."
+    exit
+fi
+
+case $1 in
+-h|-H|--help)
+    usage
+    exit 0
+    ;;
+-v|-V|--version)
+    _draw_border_default 80 "#"
+    echo "  $PROGNAME (BSD tar) v0.0.1"
+    _draw_border_default 80 "-"
+    echo "  $(cat $(dirname "$0")/LICENSE)"
+    _draw_border_default 80 "#"
+    exit 0
+    ;;
+-g|-G|--genconf)
+    /bin/bash $(dirname "$0")/genconf.sh
+    echo "  Configurations created; reload your current shell profile.${_NEWLINE}"
+    exit 0
+    ;;
+-b|-B|--backup)
+    gen_backup
+    ;;
+*)
+    echo -e "  Unknown argument passed.${_NEWLINE}"
+    usage
+    exit 0
+    ;;
+esac

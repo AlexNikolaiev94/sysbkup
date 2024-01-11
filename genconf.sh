@@ -6,8 +6,8 @@
 #
 
 # Include the utilities
-source $(dirname "$0")/_fmt.sh
-source $(dirname "$0")/_gen.sh
+source $(dirname "$0")/lib/_fmt.sh
+source $(dirname "$0")/lib/_gen.sh
 
 OS="$(cat /etc/os-release | grep '^ID=' | awk -F= '{ print $2 }')"
 
