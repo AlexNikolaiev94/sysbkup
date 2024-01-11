@@ -5,7 +5,7 @@ local file=$(cat <<-END
 # Edit this file to add or remove locations to be skipped
 #
 # Skip previous backups
-${DEST}/${OS}-full*
+${DEST}/${HOSTNAME}_${OS}-full*
 
 # Skip temporary files
 /tmp/*
